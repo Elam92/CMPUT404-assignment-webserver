@@ -1,7 +1,7 @@
 import SocketServer
 # coding: utf-8
 import os
-# Copyright 2013 Abram Hindle, Eddie Antonio Santos
+# Copyright 2013 Eric Lam, Abram Hindle, Eddie Antonio Santos
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,27 +36,38 @@ class MyWebServer(SocketServer.BaseRequestHandler):
         inputData = self.data.split('\n')
         path = os.path.abspath(os.path.dirname(__file__))
         getRequest = "/www/"
-        getRequest += inputData[0].split(' ')[1]
+        getRequest += inputData[0].split(" ")[1]
         
         # Check if directory or not if it is, then file html file
         path += getRequest
-        if os.path.isdir(path):
+        if os.path.isdir(path) and path.endswith("/"):
             path += "index.html"
 
+        # Check if directory and if it doesn't have a trailing slash, to deal with '/deep'
+        if os.path.isdir(path) and not path.endswith("/"):
+            path += "/index.html"
 
+        # Cheap fix to deal with the css when faced with '/deep'
+        # Issue is '/www//deep.css'
+        if path.endswith("//deep.css"):
+            replace = path.split("//")
+            path = replace[0]
+            replace[1] = "/deep/deep.css"
+            path += replace[1]
+            
         dataToSend = ''
         
+        # For CSS files
         if(path.endswith(".css")):
-
             try:
-                responseCSS = open(path)
+                responseCSS = open(path, "r")
                 dataToSend += 'HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n'
 
                 dataToSend += responseCSS.read()
                 self.request.sendall(dataToSend)
             except IOError:
                 self.request.sendall("HTTP/1.1 404 Not Found\r\n\r\n")
-
+        # For HTML files
         elif(path.endswith(".html")):
             try:
                 response = open(path, "r")
@@ -65,6 +76,7 @@ class MyWebServer(SocketServer.BaseRequestHandler):
                 self.request.sendall(dataToSend)
             except IOError:
                 self.request.sendall("HTTP/1.1 404 Not Found\r\n\r\n")
+        # Otherwise just 404
         else:
             self.request.sendall("HTTP/1.1 404 Not Found\r\n\r\n")
 
