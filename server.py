@@ -1,6 +1,6 @@
 import SocketServer
 # coding: utf-8
-
+import os
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,11 +28,46 @@ import SocketServer
 
 
 class MyWebServer(SocketServer.BaseRequestHandler):
-    
+
     def handle(self):
         self.data = self.request.recv(1024).strip()
         print ("Got a request of: %s\n" % self.data)
-        self.request.sendall("OK")
+        
+        inputData = self.data.split('\n')
+        path = os.path.abspath(os.path.dirname(__file__))
+        getRequest = "/www/"
+        getRequest += inputData[0].split(' ')[1]
+        
+        # Check if directory or not if it is, then file html file
+        path += getRequest
+        if os.path.isdir(path):
+            path += "index.html"
+
+
+        dataToSend = ''
+        
+        if(path.endswith(".css")):
+
+            try:
+                responseCSS = open(path)
+                dataToSend += 'HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n'
+
+                dataToSend += responseCSS.read()
+                self.request.sendall(dataToSend)
+            except IOError:
+                self.request.sendall("HTTP/1.1 404 Not Found\r\n\r\n")
+
+        elif(path.endswith(".html")):
+            try:
+                response = open(path, "r")
+                dataToSend = 'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n'
+                dataToSend += response.read()
+                self.request.sendall(dataToSend)
+            except IOError:
+                self.request.sendall("HTTP/1.1 404 Not Found\r\n\r\n")
+        else:
+            self.request.sendall("HTTP/1.1 404 Not Found\r\n\r\n")
+
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
